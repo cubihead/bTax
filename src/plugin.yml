@@ -1,0 +1,11 @@
+name: bTax
+main: com.beecub.bTax.bTax
+version: 1.0.0
+author: beecub
+description: >
+             Tax System
+commands:
+  bTax:
+    description: Reload Command for bTax
+    usage: |
+           /<command> [reload]
