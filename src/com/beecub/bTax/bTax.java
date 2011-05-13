@@ -10,6 +10,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.config.Configuration;
 
 import com.iConomy.*;
+import com.nijiko.permissions.PermissionHandler;
+import com.nijikokun.bukkit.Permissions.Permissions;
+
 import java.util.logging.Logger;
 
 
@@ -19,6 +22,8 @@ public class bTax extends JavaPlugin {
 	public static PluginDescriptionFile pdfFile;
 	public static Configuration conf;
 	public iConomy iConomy;
+	public PermissionHandler Permissions;
+    public boolean permissions = false;
 
 	@SuppressWarnings("static-access")
 	public void onEnable() {
@@ -34,7 +39,8 @@ public class bTax extends JavaPlugin {
 		bConfigManager.load();
 		conf = bConfigManager.conf;
 		
-		//iConomy();
+		setupiConomy();
+		setupPermissions();
 		bConfigManager.checkTax();
 	}
 	
@@ -52,7 +58,7 @@ public class bTax extends JavaPlugin {
         return false;
 	}
 	
-	public void iConomy() {
+	public void setupiConomy() {
 	    Plugin iConomy = this.getServer().getPluginManager().getPlugin("iConomy");
 	    
 	    if ((iConomy != null) && (iConomy.isEnabled())) {
@@ -62,5 +68,29 @@ public class bTax extends JavaPlugin {
 	        iConomy = (iConomy)iConomy;
 	        log.info("[" + pdfFile.getName() + "]" + "hooked into iConomy.");
 	    }
+	    else {
+	      log.info("[" + pdfFile.getName() + "]" + " iConomy not detected, plugin disabled");
+          this.getServer().getPluginManager().disablePlugin(this);
+	    }
 	}
+	
+	   // setup permissions
+    private boolean setupPermissions() {
+        Plugin test = this.getServer().getPluginManager().getPlugin("Permissions");
+        if (Permissions == null) {
+            if (test != null) {
+                Permissions = ((Permissions)test).getHandler();
+                log.info("[" + pdfFile.getName() + "]" + " Permission system found");
+                permissions = true;
+                return true;
+            }
+            else {
+                //log.info(""[" + pdfFile.getName() + "]" + Permission system not detected, plugin disabled");
+                //this.getServer().getPluginManager().disablePlugin(this);
+                permissions = false;
+                return false;
+            }
+        }
+        return false;
+    }
 }

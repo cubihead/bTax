@@ -5,6 +5,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Timer;
 
 import org.bukkit.entity.Player;
@@ -23,6 +25,8 @@ public class bConfigManager {
     static String message;
     static String payee;
     static String currencyname;
+    static boolean exceptionop;
+    static List<String> exceptionusers = new LinkedList<String>();
 	
 	@SuppressWarnings("static-access")
     public bConfigManager(bTax bTax) {
@@ -39,11 +43,19 @@ public class bConfigManager {
         else {
         	this.confFile = new File(bTax.getDataFolder(), "config.yml");
             this.conf = new Configuration(confFile);
+            
+            // tax
             conf.setProperty("tax.interval", " 60");
             conf.setProperty("tax.amount", "1");
             conf.setProperty("tax.message", "&6Its time to pay your tax: &amount &currencyname");
             conf.setProperty("tax.payee", "none");
             conf.setProperty("tax.currencyname", "MineCoins");
+            // options
+            List<String> bsp2 = new LinkedList<String>();
+            bsp2.add("beecub");
+            bsp2.add("anotherplayer");
+            conf.setProperty("option.exception.users", bsp2);
+            conf.setProperty("option.exception.op", true);
             conf.save();
         }
         f = new File(bTax.getDataFolder(), "users.yml");
@@ -67,7 +79,8 @@ public class bConfigManager {
     	message = conf.getString("tax.message", "&6Its time to pay your tax: &amount &currencyname");
     	payee = conf.getString("tax.payee", "none");
     	currencyname = conf.getString("tax.currencyname", "MineCoins");
-    	
+    	exceptionop = conf.getBoolean("option.exception.op", true);
+    	exceptionusers = conf.getStringList("option.exception.users", null);
     	uconf.load();
     }
 	
@@ -87,23 +100,44 @@ public class bConfigManager {
 	}
 	
 	static void checkTaxPlayer(Player player) {
-        if(interval > 0) {
-            Date lastTime = getTime(player);
-            if(lastTime == null) {
-                setTime(player);
-            }
-            lastTime = getTime(player);
-            if(lastTime != null) {
-                Calendar calcurrTime = Calendar.getInstance();
-                calcurrTime.setTime(getCurrTime());
-                Calendar callastTime = Calendar.getInstance();
-                callastTime.setTime(lastTime);
-                long secondsBetween = secondsBetween(callastTime, calcurrTime);
-                if(secondsBetween > interval) {
-                    withdrawTax(player);
+	    boolean check = true;
+	    String playername = player.getName();
+	    
+	    // check check for tax is needed
+	    if(exceptionop = true) {
+	        if(player.isOp()) {
+	            check = false;
+	        }
+	    }
+	    if(exceptionusers.contains(playername)) {
+	        check = false;
+	    }
+	    if(bTax.permissions == true) {
+	        if(bTax.Permissions.permission(player, "bTax.exception")) {
+	            check = false;
+	        }
+	    }
+	    
+	    // check for tax
+	    if(check) {
+            if(interval > 0) {
+                Date lastTime = getTime(player);
+                if(lastTime == null) {
+                    setTime(player);
+                }
+                lastTime = getTime(player);
+                if(lastTime != null) {
+                    Calendar calcurrTime = Calendar.getInstance();
+                    calcurrTime.setTime(getCurrTime());
+                    Calendar callastTime = Calendar.getInstance();
+                    callastTime.setTime(lastTime);
+                    long secondsBetween = secondsBetween(callastTime, calcurrTime);
+                    if(secondsBetween > interval) {
+                        withdrawTax(player);
+                    }
                 }
             }
-        }
+	    }
 	}
 	
 	@SuppressWarnings("static-access")
