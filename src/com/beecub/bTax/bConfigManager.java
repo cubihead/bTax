@@ -7,10 +7,10 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Timer;
-
 import org.bukkit.entity.Player;
 import org.bukkit.util.config.Configuration;
+
+import util.bChat;
 
 import com.iConomy.system.Holdings;
 
@@ -20,12 +20,14 @@ public class bConfigManager {
     protected static Configuration conf;
     protected static Configuration uconf;
     protected File confFile;
-    static int interval;
-    static int amount;
+    static long interval;
+    static double amount;
     static String message;
     static String payee;
     static String currencyname;
+    static boolean amountispercentage;
     static boolean exceptionop;
+    static boolean onlineonly;
     static List<String> exceptionusers = new LinkedList<String>();
 	
 	@SuppressWarnings("static-access")
@@ -45,11 +47,13 @@ public class bConfigManager {
             this.conf = new Configuration(confFile);
             
             // tax
-            conf.setProperty("tax.interval", " 60");
-            conf.setProperty("tax.amount", "1");
+            conf.setProperty("tax.interval", 60);
+            conf.setProperty("tax.amount", 1.00);
+            conf.setProperty("tax.amountispercentage", true);
             conf.setProperty("tax.message", "&6Its time to pay your tax: &amount &currencyname");
             conf.setProperty("tax.payee", "none");
             conf.setProperty("tax.currencyname", "MineCoins");
+            conf.setProperty("tax.onlineonly", true);
             // options
             List<String> bsp2 = new LinkedList<String>();
             bsp2.add("beecub");
@@ -72,15 +76,18 @@ public class bConfigManager {
         }
     }
     
-	static void load() {	    
+	static void load() {
     	conf.load();
     	interval = conf.getInt("tax.interval", 60);
-    	amount = conf.getInt("tax.amount", 1);
+    	amount = conf.getDouble("tax.amount", 1.00);
     	message = conf.getString("tax.message", "&6Its time to pay your tax: &amount &currencyname");
     	payee = conf.getString("tax.payee", "none");
     	currencyname = conf.getString("tax.currencyname", "MineCoins");
+    	amountispercentage = conf.getBoolean("tax.amountispercentage", true);
+    	onlineonly = conf.getBoolean("tax.onlineonly", true);
     	exceptionop = conf.getBoolean("option.exception.op", true);
     	exceptionusers = conf.getStringList("option.exception.users", null);
+    	
     	uconf.load();
     }
 	
@@ -88,82 +95,119 @@ public class bConfigManager {
 		load();
 	}
 	
-	static void checkTax() {
-	    Player[] players = bTax.getServer().getOnlinePlayers();
-	    Timer scheduler;
-        for(Player player : players) {
-            checkTaxPlayer(player);
-        }
-        scheduler = new Timer();
-        bTimer scheduleMe = new bTimer(bTax, scheduler);
-        scheduler.schedule(scheduleMe, interval * 1000);
+	static void checkTaxAll() {
+	    List<String> players = new LinkedList<String>();
+	    players = uconf.getKeys("users");
+	    String playername;
+	    String currTime = getcurrTime();
+	    for(int i = 0; i < players.size(); i++) {
+	        playername = players.get(i);
+	        if(uconf.getBoolean(("users." + playername + ".hastopay"), true)) {
+	            checkTaxPlayer(playername, currTime);
+	        }
+	    }
 	}
 	
-	static void checkTaxPlayer(Player player) {
-	    boolean check = true;
-	    String playername = player.getName();
-	    
-	    // check check for tax is needed
-	    if(exceptionop = true) {
-	        if(player.isOp()) {
-	            check = false;
-	        }
-	    }
-	    if(exceptionusers.contains(playername)) {
-	        check = false;
-	    }
-	    if(bTax.permissions == true) {
-	        if(bTax.Permissions.permission(player, "bTax.exception")) {
-	            check = false;
-	        }
-	    }
-	    
-	    // check for tax
-	    if(check) {
-            if(interval > 0) {
-                Date lastTime = getTime(player);
-                if(lastTime == null) {
-                    setTime(player);
-                }
-                lastTime = getTime(player);
-                if(lastTime != null) {
-                    Calendar calcurrTime = Calendar.getInstance();
-                    calcurrTime.setTime(getCurrTime());
-                    Calendar callastTime = Calendar.getInstance();
-                    callastTime.setTime(lastTime);
-                    long secondsBetween = secondsBetween(callastTime, calcurrTime);
-                    if(secondsBetween > interval) {
-                        withdrawTax(player);
+	static void checkTaxOnline() {
+	    Player[] players = bTax.getServer().getOnlinePlayers();
+        String currTime = getcurrTime();
+        for(Player player : players) {
+            checkTaxPlayer(player, currTime);
+        }
+	}
+	
+   static boolean checkTaxPlayer(Player player, String currTime) {
+       
+       boolean check = true;
+       String playername = player.getName();
+       
+       // check check for tax is needed
+       if(exceptionop = true) {
+           if(player.isOp()) {
+               check = false;
+           }
+       }
+       if(exceptionusers.contains(playername)) {
+           check = false;
+       }
+       if(bTax.permissions == true) {
+           if(bTax.Permissions.permission(player, "bTax.exception")) {
+               check = false;
+           }
+       }
+       
+       // check for tax
+       if(check) {
+           if(checkTaxPlayer(playername, currTime)) {
+               bChat.sendMessageToPlayer(player, message);
+               return true;
+           }
+           uconf.setProperty("users." + playername + ".hastopay", true);
+           uconf.save();
+           return false;
+       }
+       else {
+           uconf.setProperty("users." + playername + ".hastopay", false);
+           uconf.save();
+           return false;
+       }
+    }
+	
+	static boolean checkTaxPlayer(String playername, String currTime) {
+        if(interval > 0) {
+            Date lastTime = getTime(playername);
+            if(lastTime == null) {
+                setTime(playername, currTime);
+            }
+            lastTime = getTime(playername);
+            if(lastTime != null) {
+                Calendar calcurrTime = Calendar.getInstance();
+                calcurrTime.setTime(getCurrTime());
+                Calendar callastTime = Calendar.getInstance();
+                callastTime.setTime(lastTime);
+                long secondsBetween = secondsBetween(callastTime, calcurrTime);
+                if(secondsBetween > interval) {
+                    if(withdrawTax(playername, currTime)) {
+                        return true;
                     }
                 }
             }
-	    }
+        }
+        return false;
 	}
 	
 	@SuppressWarnings("static-access")
-    static void withdrawTax(Player player) {
-	    message = message.replaceAll("&amount", "&e" + Integer.toString(amount));
-	    message = message.replaceAll("&currencyname", "&e" + currencyname);
-	    bChat.sendMessageToPlayer(player, message);
+    static boolean withdrawTax(String accountname, String currTime) {
 	    
-        Holdings balance = bTax.iConomy.getAccount(player.getName()).getHoldings();
-	    balance.subtract(amount);
-	    
-	    if(payee != null && payee != "") {
-	        Holdings payeebalance = bTax.iConomy.getAccount(payee).getHoldings();
-	        payeebalance.add(amount);
+	    Holdings balance = bTax.iConomy.getAccount(accountname).getHoldings();
+	    if(amountispercentage) {
+	        double damount = balance.balance();
+	        damount = damount / 100 * amount;
+	        amount = damount;
 	    }
-	    
-	    setTime(player);
+	    if(amount > 0.0) {
+            balance.subtract(amount);            
+            
+    	    message = message.replaceAll("&amount", "&e" + Double.toString(amount));
+    	    message = message.replaceAll("&currencyname", "&e" + currencyname);
+    	    
+    	    if(payee != null && payee != "") {
+    	        Holdings payeebalance = bTax.iConomy.getAccount(payee).getHoldings();
+    	        payeebalance.add(amount);
+    	    }
+    	    
+    	    setTime(accountname, currTime);
+    	    return true;
+	    }
+	    return false;
 	}
-	
-    static void setTime(Player player) {
+    
+    static String getcurrTime() {
         String currTime = "";
         Calendar cal = Calendar.getInstance();
         SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
         currTime = sdf.format(cal.getTime());
-        uconf.setProperty("users." + player.getName(), currTime);
-        uconf.save();
+        return currTime;
     }
     
     static Date getCurrTime() {
@@ -181,9 +225,14 @@ public class bConfigManager {
          } 
     }
     
-    static Date getTime(Player player) {
+    static void setTime(String playername, String currTime) {
+        uconf.setProperty("users." + playername + ".lastpay", currTime);
+        uconf.save();
+    }
+    
+    static Date getTime(String playername) {
         String confTime = "";
-        confTime = uconf.getString("users." + player.getName(), null);
+        confTime = uconf.getString("users." + playername + ".lastpay", null);
         
         if(confTime != null && confTime != "") {
             SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");

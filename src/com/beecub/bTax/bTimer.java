@@ -14,6 +14,12 @@ public class bTimer extends TimerTask {
     }
     
     public void run() {
-        bConfigManager.checkTax();
+        bConfigManager.checkTaxOnline();
+        if(!bConfigManager.onlineonly){
+            bConfigManager.checkTaxAll();
+        }
+        Timer scheduler = new Timer();
+        bTimer scheduleMe = new bTimer(bTax, scheduler);
+        scheduler.schedule(scheduleMe, bConfigManager.interval * 1000);
     }
 }

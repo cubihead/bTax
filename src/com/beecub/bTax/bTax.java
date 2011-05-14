@@ -9,10 +9,13 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.config.Configuration;
 
+import util.bChat;
+
 import com.iConomy.*;
 import com.nijiko.permissions.PermissionHandler;
 import com.nijikokun.bukkit.Permissions.Permissions;
 
+import java.util.Timer;
 import java.util.logging.Logger;
 
 
@@ -41,7 +44,10 @@ public class bTax extends JavaPlugin {
 		
 		setupiConomy();
 		setupPermissions();
-		bConfigManager.checkTax();
+		
+		Timer scheduler = new Timer();
+        bTimer scheduleMe = new bTimer(this, scheduler);
+        scheduler.schedule(scheduleMe, bConfigManager.interval * 1000);
 	}
 	
 	public void onDisable() {
@@ -61,12 +67,12 @@ public class bTax extends JavaPlugin {
 	public void setupiConomy() {
 	    Plugin iConomy = this.getServer().getPluginManager().getPlugin("iConomy");
 	    
-	    if ((iConomy != null) && (iConomy.isEnabled())) {
+	    if ((iConomy != null) /*&& (iConomy.isEnabled())*/) {
 	        if (!iConomy.getDescription().getVersion().startsWith("5")) {
 	            log.warning("[" + pdfFile.getName() + "]" + " You need iConomy 5! If you get errors, upgrade iConomy!");
 	        }
 	        iConomy = (iConomy)iConomy;
-	        log.info("[" + pdfFile.getName() + "]" + "hooked into iConomy.");
+	        log.info("[" + pdfFile.getName() + "]" + " iConomy system found.");
 	    }
 	    else {
 	      log.info("[" + pdfFile.getName() + "]" + " iConomy not detected, plugin disabled");

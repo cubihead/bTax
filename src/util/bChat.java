@@ -1,4 +1,4 @@
-package com.beecub.bTax;
+package util;
 
 import java.util.LinkedList;
 import java.util.List;

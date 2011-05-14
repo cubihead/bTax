@@ -15,6 +15,7 @@ public class bTaxPlayerListener extends PlayerListener {
 	
 	public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        bConfigManager.checkTaxPlayer(player);
+        String currTime = bConfigManager.getcurrTime();
+        bConfigManager.checkTaxPlayer(player, currTime);
 	}
 }
